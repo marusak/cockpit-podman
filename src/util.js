@@ -3,7 +3,7 @@ import varlink from './varlink.js';
 
 const _ = cockpit.gettext;
 
-export const PODMAN_ADDRESS = "unix:/run/podman/io.podman";
+export const PODMAN_ROOT_ADDRESS = "unix:/run/podman/io.podman";
 
 /*
  * Podman returns dates in the format that golang's time.String() exports. Use
@@ -59,11 +59,11 @@ function handleVarlinkCallError(ex) {
 }
 
 export function podmanAction(name, args) {
-    return varlink.call(PODMAN_ADDRESS, "io.podman." + name, args);
+    return varlink.call(PODMAN_ROOT_ADDRESS, "io.podman." + name, args);
 }
 
 export function monitor(name, args, callback) {
-    return varlink.connect(PODMAN_ADDRESS)
+    return varlink.connect(PODMAN_ROOT_ADDRESS)
             .then(connection => { return connection.monitor("io.podman." + name, args, callback) });
 }
 
