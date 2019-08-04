@@ -62,6 +62,11 @@ export function podmanAction(name, args) {
     return varlink.call(PODMAN_ADDRESS, "io.podman." + name, args);
 }
 
+export function monitor(name, args, callback) {
+    return varlink.connect(PODMAN_ADDRESS)
+            .then(connection => { return connection.monitor("io.podman." + name, args, callback) });
+}
+
 export function updateContainer(id) {
     let container = {};
     let containerStats = {};
