@@ -27,32 +27,42 @@ import Images from './Images.jsx';
 import * as utils from './util.js';
 
 const _ = cockpit.gettext;
+const permission = cockpit.permission({ admin: true });
 
 class Application extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            serviceAvailable: null,
+            rootServiceAvailable: null,
+            userServiceAvailable: null,
             enableService: true,
-            images: null, /* images[Id]: detail info of image with Id from InspectImage */
-            containers: null, /* containers[Id] detail info of container with Id from InspectContainer */
-            containersStats:{}, /* containersStats[Id] memory usage of running container with Id */
+            images: null,
+            userImagesLoaded: false,
+            rootImagesLoaded: false,
+            containers: null,
+            containersStats: {},
+            userContainersLoaded: null,
+            rootContainersLoaded: null,
+            userServiceExists: false,
             onlyShowRunning: true,
             textFilter: "",
             dropDownValue: 'Everything',
             notifications: [],
         };
         this.onAddNotification = this.onAddNotification.bind(this);
+        this.updateState = this.updateState.bind(this);
         this.onDismissNotification = this.onDismissNotification.bind(this);
         this.onChange = this.onChange.bind(this);
         this.onFilterChanged = this.onFilterChanged.bind(this);
         this.updateImagesAfterEvent = this.updateImagesAfterEvent.bind(this);
         this.updateContainerAfterEvent = this.updateContainerAfterEvent.bind(this);
+        this.updateContainerStats = this.updateContainerStats.bind(this);
         this.startService = this.startService.bind(this);
         this.showAll = this.showAll.bind(this);
         this.goToServicePage = this.goToServicePage.bind(this);
         this.handleImageEvent = this.handleImageEvent.bind(this);
         this.handleContainerEvent = this.handleContainerEvent.bind(this);
+        this.checkUserService = this.checkUserService.bind(this);
     }
 
     onAddNotification(notification) {
@@ -88,24 +98,79 @@ class Application extends React.Component {
         });
     }
 
-    updateContainersAfterEvent() {
-        utils.updateContainers()
-                .then((reply) => {
-                    this.setState({
-                        containers: reply.newContainers,
-                        containersStats: reply.newContainersStats
-                    });
+    updateState(state, id, newValue) {
+        this.setState(prevState => {
+            let copyState = Object.assign({}, prevState[state]);
+
+            copyState[id] = newValue;
+
+            return {
+                [state]: copyState,
+            };
+        });
+    }
+
+    updateContainerStats(id, root) {
+        utils.podmanAction("GetContainerStats", { name: id }, root)
+                .then(reply => {
+                    this.updateState("containersStats", reply.container.id + root.toString(), reply.container);
                 })
                 .catch(ex => {
-                    console.warn("Failed to do Update Container:", JSON.stringify(ex));
+                    if (ex.error === "io.podman.ErrRequiresCgroupsV2ForRootless") {
+                        console.log("This OS does not support CgroupsV2. Some information may be missing.");
+                        this.updateState("containersStats", id + root.toString(), -1);
+                    } else
+                        console.warn("Failed to update container stats:", JSON.stringify(ex));
                 });
     }
 
-    updateImagesAfterEvent() {
-        utils.updateImages()
+    updateContainersAfterEvent(root) {
+        utils.podmanAction("ListContainers", {}, root)
                 .then(reply => {
-                    this.setState({
-                        images: reply
+                    this.setState(prevState => {
+                        // Copy only containers that could not be deleted with this event
+                        // So when event from root come, only copy user containers and vice versa
+                        let copyContainers = {};
+                        Object.entries(prevState.containers || {}).forEach(([id, container]) => {
+                            if (container.isRoot !== root)
+                                copyContainers[id] = container;
+                        });
+                        for (let container of reply.containers || []) {
+                            container.isRoot = root;
+                            copyContainers[container.id + root.toString()] = container;
+                            if (container.status === "running")
+                                this.updateContainerStats(container.id, root);
+                        }
+
+                        return {
+                            containers: copyContainers,
+                            [root ? "rootContainersLoaded" : "userContainersLoaded"]: true,
+                        };
+                    });
+                })
+                .catch(e => console.log(e));
+    }
+
+    updateImagesAfterEvent(root) {
+        utils.updateImages(root)
+                .then(reply => {
+                    this.setState(prevState => {
+                        // Copy only images that could not be deleted with this event
+                        // So when event from root come, only copy user images and vice versa
+                        let copyImages = {};
+                        Object.entries(prevState.images || {}).forEach(([id, image]) => {
+                            if (image.isRoot !== root)
+                                copyImages[id] = image;
+                        });
+                        Object.entries(reply).forEach(([id, image]) => {
+                            image.isRoot = root;
+                            copyImages[id + root.toString()] = image;
+                        });
+
+                        return {
+                            images: copyImages,
+                            [root ? "rootImagesLoaded" : "userImagesLoaded"]: true
+                        };
                     });
                 })
                 .catch(ex => {
@@ -113,62 +178,54 @@ class Application extends React.Component {
                 });
     }
 
-    updateContainerAfterEvent(id) {
-        utils.updateContainer(id)
+    updateContainerAfterEvent(id, root) {
+        utils.podmanAction("GetContainer", { id: id }, root)
                 .then(reply => {
-                    this.setState(prevState => {
-                        let containersCopy = Object.assign({}, prevState.containers);
-                        let containersCopyStats = Object.assign({}, prevState.containersStats);
-
-                        containersCopy[reply.container.id] = reply.container;
-                        containersCopyStats[reply.container.id] = reply.containerStats;
-
-                        return {
-                            containers: containersCopy,
-                            containersStats: containersCopyStats,
-                        };
-                    });
+                    reply.container.isRoot = root;
+                    this.updateState("containers", reply.container.id + root.toString(), reply.container);
+                    if (reply.container.status == "running")
+                        this.updateContainerStats(reply.container.id, root);
+                    else {
+                        this.setState(prevState => {
+                            let copyStats = Object.assign({}, prevState.containersStats);
+                            delete copyStats[reply.container.id + root.toString()];
+                            return { containersStats: copyStats };
+                        });
+                    }
                 })
-                .catch(ex => {
-                    console.warn("Failed to do Update Container:", JSON.stringify(ex));
-                });
+                .catch(e => console.log(e));
     }
 
-    updateImageAfterEvent(id) {
-        utils.updateImage(id)
+    updateImageAfterEvent(id, root) {
+        utils.updateImage(id, root)
                 .then(reply => {
-                    this.setState(prevState => {
-                        let imagesCopy = Object.assign({}, prevState.images);
-
-                        imagesCopy[reply.image.id] = reply.image;
-
-                        return { images: imagesCopy };
-                    });
+                    reply.image.isRoot = root;
+                    this.updateState("images", reply.image.id + root.toString(), reply.image);
                 })
                 .catch(ex => {
                     console.warn("Failed to do Update Image:", JSON.stringify(ex));
                 });
     }
 
-    handleImageEvent(event) {
+    handleImageEvent(event, root) {
         switch (event.status) {
         case 'push':
         case 'save':
         case 'tag':
-            this.updateImageAfterEvent(event.id);
+            this.updateImageAfterEvent(event.id, root);
             break;
         case 'pull': // Pull event has not event.id
         case 'untag':
         case 'remove':
         case 'prune':
-            this.updateImagesAfterEvent();
+            this.updateImagesAfterEvent(root);
             break;
         default:
             console.warn('Unhandled event type ', event.type, event.status);
         }
     }
 
-    handleContainerEvent(event) {
+    handleContainerEvent(event, root) {
         switch (event.status) {
         /* The following events do not need to trigger any state updates */
         case 'attach':
@@ -196,56 +253,75 @@ class Application extends React.Component {
         case 'sync':
         case 'unmount':
         case 'unpause':
-            this.updateContainerAfterEvent(event.id);
+            this.updateContainerAfterEvent(event.id, root);
             break;
         case 'remove':
         case 'cleanup':
-            this.updateContainersAfterEvent();
+            this.updateContainersAfterEvent(root);
             break;
         /* The following events need only to update the Image list */
         case 'commit':
-            this.updateImagesAfterEvent();
+            this.updateImagesAfterEvent(root);
             break;
         default:
             console.warn('Unhandled event type ', event.type, event.status);
         }
     }
 
-    handleEvent(event) {
+    handleEvent(event, root) {
         switch (event.type) {
         case 'container':
-            this.handleContainerEvent(event);
+            this.handleContainerEvent(event, root);
             break;
         case 'image':
-            this.handleImageEvent(event);
+            this.handleImageEvent(event, root);
             break;
         default:
             console.warn('Unhandled event type ', event.type);
         }
     }
 
-    init() {
-        utils.podmanAction("GetVersion")
+    init(root) {
+        this.checkUserService();
+        utils.podmanAction("GetVersion", {}, root)
                 .then(reply => {
-                    this.setState({ serviceAvailable: true });
-                    this.updateImagesAfterEvent();
-                    this.updateContainersAfterEvent();
+                    this.setState({ [root ? "rootServiceAvailable" : "userServiceAvailable"]: true });
+                    this.updateImagesAfterEvent(root);
+                    this.updateContainersAfterEvent(root);
                     utils.monitor("GetEvents", {},
                                   message => {
-                                      message.parameters && message.parameters.events && this.handleEvent(message.parameters.events);
+                                      message.parameters && message.parameters.events && this.handleEvent(message.parameters.events, root);
                                   },
+                                  root
                     );
                 })
                 .catch(error => {
-                    if (error.name === "ConnectionClosed")
-                        this.setState({ serviceAvailable: false });
-                    else
+                    if (error.name === "ConnectionClosed") {
+                        this.setState({ [root ? "rootServiceAvailable" : "userServiceAvailable"]: false,
+                                        [root ? "rootContainersLoaded" : "userContainersLoaded"]: true,
+                                        [root ? "rootImagesLoaded" : "userImagesLoaded"]: true
+                        });
+                    } else
                         console.error("Failed to call GetVersion():", error);
                 });
     }
 
     componentDidMount() {
-        this.init();
+        this.init(true);
+        this.init(false);
+    }
+
+    checkUserService() {
+        let argv = ["systemctl", "--user", "status", "io.podman.socket"];
+
+        cockpit.spawn(argv)
+                .then(() => this.setState({ userServiceExists: true }))
+                .catch(err => {
+                    if (err.exit_status === 4) // systemctl status returns 3 when service is not running
+                        this.setState({ userServiceExists: false });
+                    else
+                        this.setState({ userServiceExists: true });
+                });
     }
 
     startService(e) {
@@ -259,8 +335,27 @@ class Application extends React.Component {
             argv = ["systemctl", "start", "io.podman.socket"];
 
         cockpit.spawn(argv, { superuser: "require", err: "message" })
-                .then(() => this.init())
-                .catch(err => console.error("Failed to start io.podman.socket:", JSON.stringify(err)));
+                .then(() => this.init(true))
+                .catch(err => {
+                    this.setState({ rootServiceAvailable: false,
+                                    rootContainersLoaded: true,
+                                    rootImagesLoaded: true });
+                    console.warn("Failed to start root io.podman.socket:", JSON.stringify(err));
+                });
+
+        if (this.state.enableService)
+            argv = ["systemctl", "--user", "enable", "--now", "io.podman.socket"];
+        else
+            argv = ["systemctl", "--user", "start", "io.podman.socket"];
+
+        cockpit.spawn(argv, { err: "message" })
+                .then(() => this.init(false))
+                .catch(err => {
+                    this.setState({ userServiceAvailable: false,
+                                    userContainersLoaded: true,
+                                    userImagesLoaded: true });
+                    console.warn("Failed to start user io.podman.socket:", JSON.stringify(err));
+                });
     }
 
     showAll() {
@@ -274,10 +369,10 @@ class Application extends React.Component {
     }
 
     render() {
-        if (this.state.serviceAvailable === null) // not detected yet
+        if (this.state.rootServiceAvailable === null && this.state.userServiceAvailable === null) // not detected yet
             return null;
 
-        if (!this.state.serviceAvailable) {
+        if (!this.state.rootServiceAvailable && !this.state.userServiceAvailable) {
             return (
                 <div className="curtains-ct blank-slate-pf">
                     <div className="blank-slate-pf-icon">
@@ -314,40 +409,60 @@ class Application extends React.Component {
         if (this.state.containers !== null) {
             Object.keys(this.state.containers).forEach(c => {
                 const container = this.state.containers[c];
-                const image = container.imageid;
+                const image = container.imageid + container.isRoot.toString();
                 if (imageContainerList[image]) {
                     imageContainerList[image].push({
                         container: container,
-                        stats: this.state.containersStats[container.id],
+                        stats: this.state.containersStats[container.id + container.isRoot.toString()],
                     });
                 } else {
                     imageContainerList[image] = [ {
                         container: container,
-                        stats: this.state.containersStats[container.id]
+                        stats: this.state.containersStats[container.id + container.isRoot.toString()]
                     } ];
                 }
             });
         } else
             imageContainerList = null;
 
-        let imageList;
-        let containerList;
-        imageList =
+        let startService = "";
+        if (!this.state.rootServiceAvailable && permission.allowed) {
+            startService = <div className="alert alert-danger dialog-error">
+                <div className="info-message">
+                    <span className="pficon pficon-info" />
+                    <span>{_("System Podman service is also available")}</span>
+                </div>
+                <button onClick={this.startService}>{_("Start")}</button>
+            </div>;
+        }
+        if (!this.state.userServiceAvailable && this.state.userServiceExists) {
+            startService = <div className="alert alert-info dialog-info">
+                <div className="info-message">
+                    <span className="fa fa-exclamation-triangle" />
+                    <span>{_("User Podman service is also available")}</span>
+                </div>
+                <button onClick={this.startService}>{_("Start")}</button>
+            </div>;
+        }
+
+        const imageList =
             <Images
                 key={_("imageList")}
-                images={this.state.images}
+                images={this.state.rootImagesLoaded && this.state.userImagesLoaded ? this.state.images : null}
                 imageContainerList={imageContainerList}
                 onAddNotification={this.onAddNotification}
                 textFilter={this.state.textFilter}
                 showAll={this.showAll}
+                user={permission.user || _("user")}
             />;
-        containerList =
+        const containerList =
             <Containers
                 key={_("containerList")}
-                containers={this.state.containers}
+                containers={this.state.rootContainersLoaded && this.state.userContainersLoaded ? this.state.containers : null}
                 containersStats={this.state.containersStats}
                 onlyShowRunning={this.state.onlyShowRunning}
                 textFilter={this.state.textFilter}
+                user={permission.user || _("user")}
             />;
         const notificationList = (
             <ToastNotificationList>
@@ -361,6 +476,7 @@ class Application extends React.Component {
                 })}
             </ToastNotificationList>
         );
+
         return (
             <div id="overview" key={"overview"}>
                 <div key={"containerheader"} className="content-filter">
@@ -370,6 +486,7 @@ class Application extends React.Component {
                         onFilterChanged={this.onFilterChanged}
                     />
                 </div>
+                { startService }
                 <div key={"containerslists"} className="container-fluid">
                     {containerList}
                 </div>

@@ -19,12 +19,14 @@ export class ImageSearchModal extends React.Component {
             imageList: [],
             searchInProgress: false,
             searchFinished: false,
+            isRoot: false,
         };
         this.onDownloadClicked = this.onDownloadClicked.bind(this);
         this.onItemSelected = this.onItemSelected.bind(this);
         this.onSearchTriggered = this.onSearchTriggered.bind(this);
         this.onValueChanged = this.onValueChanged.bind(this);
         this.onKeyPress = this.onKeyPress.bind(this);
+        this.onToggleUser = this.onToggleUser.bind(this);
     }
 
     componentDidMount() {
@@ -38,11 +40,15 @@ export class ImageSearchModal extends React.Component {
             this.activeConnection.close();
     }
 
+    onToggleUser() {
+        this.setState({ isRoot: !this.state.isRoot });
+    }
+
     onDownloadClicked() {
         let selectedImageName = this.state.imageList[this.state.selected].name;
 
         this.props.close();
-        this.props.downloadImage(selectedImageName, this.state.imageTag);
+        this.props.downloadImage(selectedImageName, this.state.imageTag, this.state.isRoot);
     }
 
     onItemSelected(key) {
@@ -63,7 +69,7 @@ export class ImageSearchModal extends React.Component {
 
         this.setState({ searchInProgress: true });
 
-        varlink.connect(utils.PODMAN_ROOT_ADDRESS)
+        varlink.connect(utils.PODMAN_ROOT_ADDRESS, this.state.isRoot)
                 .then(connection => {
                     this.activeConnection = connection;
 
@@ -110,6 +116,15 @@ export class ImageSearchModal extends React.Component {
     render() {
         let defaultBody = (
             <React.Fragment>
+                <form className="ct-form">
+                    <label className="control-label" htmlFor="as-user">{_("Download as:")}</label>
+                    <fieldset id="as-user">
+                        <input type="radio" value="user" id="user" onChange={this.onToggleUser} checked={!this.state.isRoot} />
+                        <label className="radio" htmlFor="user">{_("user")}</label>
+                        <input type="radio" value="root" id="root" onChange={this.onToggleUser} checked={this.state.isRoot} />
+                        <label className="radio" htmlFor="root">{_("root")}</label>
+                    </fieldset>
+                </form>
                 <div className="input-group">
                     <span className="input-group-addon">
                         <span className="fa fa-search" />

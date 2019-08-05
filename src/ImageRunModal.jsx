@@ -253,8 +253,8 @@ export class ImageRunModal extends React.Component {
     onRunClicked() {
         const createConfig = this.getCreateConfig();
 
-        utils.podmanAction("CreateContainer", { create: createConfig })
-                .then(reply => utils.podmanAction("StartContainer", { name: reply.container }))
+        utils.podmanAction("CreateContainer", { create: createConfig }, this.state.image.isRoot)
+                .then(reply => utils.podmanAction("StartContainer", { name: reply.container }, this.state.image.isRoot))
                 .then(() => this.props.close())
                 .catch(ex => {
                     this.setState({

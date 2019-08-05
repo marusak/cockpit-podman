@@ -76,7 +76,7 @@ class ContainerTerminal extends React.Component {
         var realWidth = this.state.term._core._renderCoordinator.dimensions.actualCellWidth;
         var cols = Math.floor((width - padding) / realWidth);
         this.state.term.resize(cols, 24);
-        cockpit.spawn(["sh", "-c", "echo '1 24 " + cols.toString() + "'>" + this.state.control_channel], { superuser: true });
+        cockpit.spawn(["sh", "-c", "echo '1 24 " + cols.toString() + "'>" + this.state.control_channel], { superuser: this.props.root ? "require" : null });
         this.setState({ cols: cols });
     }
 
@@ -91,12 +91,12 @@ class ContainerTerminal extends React.Component {
             return;
         }
 
-        utils.podmanAction("GetAttachSockets", { name: this.state.container })
+        utils.podmanAction("GetAttachSockets", { name: this.state.container }, this.props.root)
                 .then(out => {
                     let opts = {
                         payload: "packet",
                         unix: out.sockets.io_socket,
-                        superuser: "require",
+                        superuser: this.props.root ? "require" : null,
                         binary: false
                     };
 

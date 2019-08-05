@@ -97,7 +97,7 @@ class ContainerCommitModal extends React.Component {
 
             if (reply && 'logs' in reply && Array.isArray(reply.logs) && reply.logs.length > 0)
                 console.log("Container commit:", message.parameters.reply.logs.join("\n"));
-        })
+        }, this.props.container.isRoot)
                 .then(() => this.props.onHide())
                 .catch(ex => {
                     this.setState({
