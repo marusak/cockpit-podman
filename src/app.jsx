@@ -24,6 +24,7 @@ import cockpit from 'cockpit';
 import ContainerHeader from './ContainerHeader.jsx';
 import Containers from './Containers.jsx';
 import Images from './Images.jsx';
+import ImageOverview from './ImageOverview.jsx';
 import * as utils from './util.js';
 import varlink from './varlink';
 
@@ -42,6 +43,7 @@ class Application extends React.Component {
             textFilter: "",
             dropDownValue: 'Everything',
             notifications: [],
+            path: cockpit.location.path,
         };
         this.onAddNotification = this.onAddNotification.bind(this);
         this.onDismissNotification = this.onDismissNotification.bind(this);
@@ -53,6 +55,7 @@ class Application extends React.Component {
         this.goToServicePage = this.goToServicePage.bind(this);
         this.handleImageEvent = this.handleImageEvent.bind(this);
         this.handleContainerEvent = this.handleContainerEvent.bind(this);
+        this.on_navigate = () => { this.setState({ path: cockpit.location.path }) };
     }
 
     onAddNotification(notification) {
@@ -248,7 +251,12 @@ class Application extends React.Component {
     }
 
     componentDidMount() {
+        cockpit.addEventListener("locationchanged", this.on_navigate);
         this.init();
+    }
+
+    componentWillUnmount() {
+        cockpit.removeEventListener("locationchanged", this.on_navigate);
     }
 
     startService(e) {
@@ -309,6 +317,19 @@ class Application extends React.Component {
                 </div>);
         }
 
+        let imageContainerList = {};
+        if (this.state.containers !== null) {
+            Object.keys(this.state.containers).forEach(c => {
+                let container = this.state.containers[c];
+                let image = container.imageid;
+                if (imageContainerList[image])
+                    imageContainerList[image].push(container);
+                else
+                    imageContainerList[image] = [ container ];
+            });
+        } else
+            imageContainerList = null;
+
         let imageList;
         let containerList;
         imageList =
@@ -317,6 +338,7 @@ class Application extends React.Component {
                 images={this.state.images}
                 onAddNotification={this.onAddNotification}
                 textFilter={this.state.textFilter}
+                imageContainerList={imageContainerList}
             />;
         containerList =
             <Containers
@@ -338,7 +360,8 @@ class Application extends React.Component {
                 })}
             </ToastNotificationList>
         );
-        return (
+
+        let content =
             <div id="overview" key={"overview"}>
                 <div key={"containerheader"} className="content-filter">
                     <ContainerHeader
@@ -356,7 +379,21 @@ class Application extends React.Component {
                 <div style={null}>
                     {notificationList}
                 </div>
-            </div>
+            </div>;
+
+        if (this.state.path.length === 2 && this.state.path[0] === "image") {
+            let i = this.state.path[1];
+            content =
+                <ImageOverview
+                    image={this.state.images !== null ? this.state.images[i] : null}
+                    containers={imageContainerList !== null ? imageContainerList[i] : null}
+                />;
+        }
+
+        return (
+            <React.Fragment>
+                { content }
+            </React.Fragment>
         );
     }
 }
