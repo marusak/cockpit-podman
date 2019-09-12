@@ -61,6 +61,7 @@ class Application extends React.Component {
         this.showAll = this.showAll.bind(this);
         this.goToServicePage = this.goToServicePage.bind(this);
         this.handleImageEvent = this.handleImageEvent.bind(this);
+        this.handleSystemEvent = this.handleSystemEvent.bind(this);
         this.handleContainerEvent = this.handleContainerEvent.bind(this);
         this.checkUserService = this.checkUserService.bind(this);
     }
@@ -207,6 +208,17 @@ class Application extends React.Component {
                 });
     }
 
+    handleSystemEvent(event, root) {
+        switch (event.status) {
+        case 'refresh':
+            this.updateImagesAfterEvent(root);
+            this.updateContainersAfterEvent(root);
+            break;
+        default:
+            console.warn('Unhandled event type ', event.type, event.status);
+        }
+    }
+
     handleImageEvent(event, root) {
         switch (event.status) {
         case 'push':
@@ -275,6 +287,9 @@ class Application extends React.Component {
             break;
         case 'image':
             this.handleImageEvent(event, root);
+            break;
+        case 'system':
+            this.handleSystemEvent(event, root);
             break;
         default:
             console.warn('Unhandled event type ', event.type);
