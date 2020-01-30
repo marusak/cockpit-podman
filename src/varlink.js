@@ -97,7 +97,7 @@ function connect(address, system, raw_messages) {
     connection.monitor = function (method, parameters, replyCallback) {
         parameters = parameters || {};
 
-        const data = encoder.encode(JSON.stringify({ method, parameters, more: true }));
+        const data = encoder.encode(JSON.stringify({ method, parameters, more: true, upgrade: true }));
 
         channel.send(data);
         channel.send([0]);
