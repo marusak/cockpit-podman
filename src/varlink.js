@@ -105,6 +105,10 @@ function connect(address, system, raw_messages) {
         return new Promise((resolve, reject) => pending.push({ resolve, reject, replyCallback }));
     };
 
+    connection.write_raw = function (data) {
+        channel.send(encoder.encode(data));
+    };
+
     connection.close = function () {
         pending.forEach(p => p.reject({ error: "ConnectionClosed" }));
         pending = [];
