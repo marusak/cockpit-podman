@@ -30,7 +30,7 @@ class VarlinkError extends Error {
  *
  * https://varlink.org
  */
-function connect(address, system) {
+function connect(address, system, raw_messages) {
     if (!address.startsWith("unix:"))
         throw new Error("Only unix varlink connections supported");
 
@@ -46,8 +46,12 @@ function connect(address, system) {
     });
 
     channel.addEventListener("message", (event, data) => {
-        buffer += decoder.decode(data);
+        if (raw_messages) {
+            pending[0].replyCallback(decoder.decode(data).split("\0"));
+            return;
+        }
 
+        buffer += decoder.decode(data);
         const chunks = buffer.split("\0");
         buffer = chunks.pop();
 
