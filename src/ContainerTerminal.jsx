@@ -23,6 +23,7 @@ import cockpit from 'cockpit';
 import { Terminal } from "xterm";
 
 import * as utils from './util.js';
+import varlink from './varlink.js';
 
 import "./ContainerTerminal.css";
 
@@ -52,7 +53,6 @@ class ContainerTerminal extends React.Component {
             term: term,
             container: props.containerId,
             channel: null,
-            control_channel: null,
             opened: false,
             errorMessage: "",
             cols: 80,
@@ -76,7 +76,7 @@ class ContainerTerminal extends React.Component {
         var realWidth = this.state.term._core._renderCoordinator.dimensions.actualCellWidth;
         var cols = Math.floor((width - padding) / realWidth);
         this.state.term.resize(cols, 24);
-        cockpit.spawn(["sh", "-c", "echo '1 24 " + cols.toString() + "'>" + this.state.control_channel], { superuser: this.props.system ? "require" : null });
+        // TODO resize
         this.setState({ cols: cols });
     }
 
@@ -91,44 +91,50 @@ class ContainerTerminal extends React.Component {
             return;
         }
 
-        utils.podmanCall("GetAttachSockets", { name: this.state.container }, this.props.system)
-                .then(out => {
-                    const opts = {
-                        payload: "packet",
-                        unix: out.sockets.io_socket,
-                        superuser: this.props.system ? "require" : null,
-                        binary: false
-                    };
+        let logsData = {};
+        logsData.name = this.props.containerId;
+        logsData.tty = true;
+        logsData.cmd = ["sh"];
+        logsData = { opts: logsData };
 
-                    const channel = cockpit.channel(opts);
-                    channel.wait()
-                            .then(() => {
-                                // Show the terminal. Once it was shown, do not show it again but reuse the previous one
-                                if (!this.state.opened) {
-                                    this.state.term.open(this.refs.terminal);
-                                    this.setState({ opened: true });
+        varlink.connect(utils.getAddress(this.props.system), this.props.system, true)
+                .then(connection => {
+                    // Show the terminal. Once it was shown, do not show it again but reuse the previous one
+                    if (!this.state.opened) {
+                        this.state.term.open(this.refs.terminal);
+                        this.setState({ opened: true });
+                    }
 
-                                    self.state.term.on('data', function(data) {
-                                        if (self.state.channel)
-                                            self.state.channel.send(data);
-                                    });
-                                }
+                    self.state.term.on('data', function(data) {
+                        if (self.state.channel) {
+                            self.state.channel.write_raw(data); // TODO: does not work
+                        }
+                    });
 
-                                channel.addEventListener("message", this.onChannelMessage);
-                                channel.addEventListener('close', this.onChannelClose);
-
-                                channel.send(String.fromCharCode(12)); // Send SIGWINCH to show prompt on attaching
-                                this.setState({ channel: channel, control_channel: out.sockets.control_socket, errorMessage: "" });
-                                this.resize(this.props.width);
-                            })
+                    connection.monitor("io.podman.ExecContainer", logsData, this.onChannelMessage)
+                            .then(this.onChannelClose)
                             .catch(e => {
-                                let message = cockpit.format(_("Could not open channel: $0"), e.problem);
-                                if (e.problem === "not-supported")
-                                    message = _("This version of the Web Console does not support a terminal.");
-                                this.setState({ errorMessage: message });
+                                if (e.error === "ConnectionClosed")
+                                    this.onChannelClose();
+                                else
+                                    this.setState({
+                                        errorMessage: e.message,
+                                        channel: null,
+                                    });
                             });
+                    this.setState({
+                        channel: connection,
+                        errorMessage: "",
+                    });
                 })
-                .catch(e => this.setState({ errorMessage: cockpit.format(_("Could not attach to this container: $0"), e.problem) }));
+                .catch(e => {
+                    this.setState({
+                        errorMessage: e.message,
+                        channel: null,
+                    });
+                });
+        // TODO proper errors
+        // TODO on willUnmount close the channel
     }
 
     componentWillUnmount() {
@@ -138,8 +144,9 @@ class ContainerTerminal extends React.Component {
         this.state.term.destroy();
     }
 
-    onChannelMessage(event, data) {
-        this.state.term.write(data.substring(1)); // Drop first character which is marking stdin/stdout/stderr
+    onChannelMessage(data) {
+        if (data)
+            this.state.term.write(data.join(""));
     }
 
     onChannelClose(event, options) {
@@ -151,9 +158,9 @@ class ContainerTerminal extends React.Component {
     }
 
     disconnectChannel() {
+        // TODO same as in Logs
         if (this.state.channel) {
-            this.state.channel.removeEventListener('message', this.onChannelMessage);
-            this.state.channel.removeEventListener('close', this.onChannelClose);
+            console.log("Closing");
         }
     }
 
