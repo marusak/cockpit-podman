@@ -6,8 +6,8 @@ const moment = require('moment');
 const _ = cockpit.gettext;
 
 const render_container_state = (container) => {
-    if (container.status === "running") {
-        return cockpit.format(_("Up since $0"), moment(container.createdat, utils.GOLANG_TIME_FORMAT).calendar());
+    if (container.State === "running") {
+        return cockpit.format(_("Up since $0"), moment(container.StartedAt * 1000).calendar());
     }
     return cockpit.format(_("Exited"));
 };
@@ -27,13 +27,13 @@ const render_container_published_ports = ({ ports }) => {
 const ContainerDetails = ({ container }) => (
     <dl className='container-details'>
         <dt>{_("ID")}</dt>
-        <dd>{container.id}</dd>
+        <dd>{container.Id}</dd>
         <dt>{_("Created")}</dt>
-        <dd>{moment(container.createdat, utils.GOLANG_TIME_FORMAT).calendar()}</dd>
+        <dd>{moment(container.Created * 1000).calendar()}</dd>
         <dt>{_("Image")}</dt>
-        <dd>{container.image}</dd>
+        <dd>{container.Image}</dd>
         <dt>{_("Command")}</dt>
-        <dd>{container.command ? utils.quote_cmdline(container.command) : ""}</dd>
+        <dd>{container.Command ? utils.quote_cmdline(container.Command) : ""}</dd>
         <dt>{_("State")}</dt>
         <dd>{render_container_state(container)}</dd>
         <dt>{_("Ports")}</dt>

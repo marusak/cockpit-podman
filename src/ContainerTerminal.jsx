@@ -91,7 +91,8 @@ class ContainerTerminal extends React.Component {
             return;
         }
 
-        utils.podmanCall("GetAttachSockets", { name: this.state.container }, this.props.system)
+        // https://github.com/marusak/cockpit-podman/tree/proper_terminal
+        utils.podmanCall("GetAttachSockets", { name: this.state.container }, this.props.system) // TODO rewrite this with exec once implemented - https://github.com/containers/libpod/pull/5088
                 .then(out => {
                     const opts = {
                         payload: "packet",

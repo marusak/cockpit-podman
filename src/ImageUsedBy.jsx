@@ -6,12 +6,12 @@ import * as Listing from '../lib/cockpit-components-listing.jsx';
 const _ = cockpit.gettext;
 
 const renderRow = (containerStats, container, showAll) => {
-    const isRunning = container.status == "running";
+    const isRunning = container.State == "running";
     let proc = "";
     let mem = "";
     if (containerStats) {
-        proc = containerStats.cpu ? utils.format_cpu_percent(containerStats.cpu * 100) : <abbr title={_("not available")}>{_("n/a")}</abbr>;
-        mem = containerStats.mem_usage ? utils.format_memory_and_limit(containerStats.mem_usage, containerStats.mem_limit) : <abbr title={_("not available")}>{_("n/a")}</abbr>;
+        proc = containerStats.cpu_stats && containerStats.precpu_stats ? utils.format_cpu_percent(containerStats.cpu_stats, containerStats.precpu_stats) : <abbr title={_("not available")}>{_("n/a")}</abbr>;
+        mem = containerStats.memory_stats ? utils.format_memory_and_limit(containerStats.memory_stats.usage, containerStats.memory_stats.limit) : <abbr title={_("not available")}>{_("n/a")}</abbr>;
     }
 
     const columns = [
@@ -19,7 +19,7 @@ const renderRow = (containerStats, container, showAll) => {
         utils.quote_cmdline(container.command),
         proc,
         mem,
-        container.status /* TODO: i18n */,
+        container.State /* TODO: i18n */,
 
     ];
     return <Listing.ListingRow

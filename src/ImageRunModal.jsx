@@ -7,6 +7,7 @@ import * as Select from '../lib/cockpit-components-select.jsx';
 import { ErrorNotification } from './Notification.jsx';
 import { FileAutoComplete } from '../lib/cockpit-components-file-autocomplete.jsx';
 import * as utils from './util.js';
+import * as client from './client.js';
 import cockpit from 'cockpit';
 
 import '../lib/form-layout.less';
@@ -198,7 +199,7 @@ export class ImageRunModal extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            command: this.props.image.command ? utils.quote_cmdline(this.props.image.command) : "sh",
+            command: this.props.image.Command ? utils.quote_cmdline(this.props.image.Command) : "sh",
             containerName: dockerNames.getRandomName(),
             env: [],
             hasTTY: true,
@@ -220,7 +221,7 @@ export class ImageRunModal extends React.Component {
     getCreateConfig() {
         const createConfig = {};
 
-        createConfig.args = this.state.image.repoTags ? [this.state.image.repoTags[0]] : [""];
+        createConfig.args = this.state.image.RepoTags ? [this.state.image.RepoTags[0]] : [""];
         if (this.state.containerName)
             createConfig.name = this.state.containerName;
         if (this.state.command) {
@@ -258,8 +259,8 @@ export class ImageRunModal extends React.Component {
     onRunClicked() {
         const createConfig = this.getCreateConfig();
 
-        utils.podmanCall("CreateContainer", { create: createConfig }, this.state.image.isSystem)
-                .then(reply => utils.podmanCall("StartContainer", { name: reply.container }, this.state.image.isSystem))
+        utils.podmanCall("CreateContainer", { create: createConfig }, this.state.image.isSystem) // TODO 'create' is not yet implemented - https://github.com/containers/libpod/pull/5204
+                .then(reply => client.postContainer(this.state.image.isSystem, "start", reply.container, {}))
                 .then(() => this.props.close())
                 .catch(ex => {
                     this.setState({
@@ -282,7 +283,7 @@ export class ImageRunModal extends React.Component {
                 <label className='control-label' htmlFor='run-image-dialog-image'>
                     {_("Image")}
                 </label>
-                <div id='run-image-dialog-image'> { image.repoTags ? image.repoTags[0] : "" } </div>
+                <div id='run-image-dialog-image'> { image.RepoTags ? image.RepoTags[0] : "" } </div>
 
                 <label className='control-label' htmlFor='run-image-dialog-name'>
                     {_("Name")}

@@ -100,7 +100,7 @@ class ContainerCommitModal extends React.Component {
         commitData.changes.push(...onbuildsArr);
 
         this.setState({ commitInProgress: true });
-        utils.monitor("Commit", commitData, message => {
+        utils.monitor("Commit", commitData, message => { // TODO implement once commit is supported - NO TRACKER!
             const reply = message.parameters.reply;
 
             if (reply && 'logs' in reply && Array.isArray(reply.logs) && reply.logs.length > 0)

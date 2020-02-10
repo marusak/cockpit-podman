@@ -3,7 +3,7 @@ import varlink from './varlink.js';
 
 const _ = cockpit.gettext;
 
-export const PODMAN_SYSTEM_ADDRESS = "unix:/run/podman/io.podman";
+export const PODMAN_SYSTEM_ADDRESS = "unix:/run/podman/io.podman"; // TODO should be possible to remove
 
 /*
  * Podman returns dates in the format that golang's time.String() exports. Use
@@ -13,7 +13,7 @@ export const PODMAN_SYSTEM_ADDRESS = "unix:/run/podman/io.podman";
  *
  * https://github.com/containers/libpod/issues/2260
  */
-export const GOLANG_TIME_FORMAT = 'YYYY-MM-DD HH:mm:ss.S Z';
+export const GOLANG_TIME_FORMAT = 'YYYY-MM-DD HH:mm:ss.S Z'; // TODO should be possible to remove
 
 export function truncate_id(id) {
     if (!id) {
@@ -22,10 +22,24 @@ export function truncate_id(id) {
     return _(id.substr(0, 12));
 }
 
-export function format_cpu_percent(cpuPercent) {
-    if (cpuPercent === undefined || isNaN(cpuPercent)) {
+export function format_cpu_percent(cpu, precpu) { // TODO - https://github.com/containers/libpod/pull/5178
+    if (cpu === undefined || precpu === undefined) {
         return "";
     }
+
+    let cpuPercent = 0;
+    const cpuDelta = cpu.cpu_usage.total_usage - precpu.cpu_usage.total_usage;
+    let systemDelta = cpu.system_usage - precpu.system_usage;
+
+    // https://github.com/moby/moby/blob/eb131c5383db8cac633919f82abad86c99bffbe5/cli/command/container/stats_helpers.go#L175
+    // https://github.com/containers/libpod/pull/4423/files
+    // TODO system_usage is not on the protocol but gonna hopefully use #5178
+    systemDelta = 0;
+
+    if (cpuDelta > 0 && systemDelta > 0) {
+        cpuPercent = (cpuDelta / systemDelta) * (cpu.cpu_usage.percpu_usage.length * 100);
+    }
+
     return cpuPercent.toFixed() + "%";
 }
 
@@ -33,6 +47,8 @@ export function format_memory_and_limit(usage, limit) {
     if (usage === undefined || isNaN(usage))
         return "";
 
+    usage = usage / 1073741824; // 1024^3
+    limit = limit / 1073741824;
     var mtext = "";
     var units = 1024;
     var parts;
@@ -53,6 +69,7 @@ export function format_memory_and_limit(usage, limit) {
     }
 }
 
+// ------------------------- REMOVE FROM HERE ---------------------
 export function getAddress(system) {
     if (system)
         return PODMAN_SYSTEM_ADDRESS;
@@ -61,14 +78,6 @@ export function getAddress(system) {
         return ("unix:" + xrd + "/podman/io.podman");
     console.warn("$XDG_RUNTIME_DIR is not present. Cannot use user service.");
     return "";
-}
-
-// TODO: handle different kinds of errors
-function handleVarlinkCallError(ex) {
-    if (ex.error === "io.podman.ErrRequiresCgroupsV2ForRootless")
-        console.log("This OS does not support CgroupsV2. Some information may be missing.");
-    else
-        console.warn("Failed to do varlinkcall:", JSON.stringify(ex));
 }
 
 export function podmanCall(name, args, system) {
@@ -86,62 +95,6 @@ export function monitor(name, args, callback, on_close, system) {
             });
 }
 
-export function updateImage(id, system) {
-    let image = {};
-
-    return podmanCall("GetImage", { id: id }, system)
-            .then(reply => {
-                image = reply.image;
-                return podmanCall("InspectImage", { name: id }, system);
-            })
-            .then(reply => Object.assign(image, parseImageInfo(JSON.parse(reply.image))));
-}
-
-function parseImageInfo(info) {
-    const image = {};
-
-    if (info.Config) {
-        image.entrypoint = info.Config.EntryPoint;
-        image.command = info.Config.Cmd;
-        image.ports = Object.keys(info.Config.ExposedPorts || {});
-    }
-    image.author = info.Author;
-
-    return image;
-}
-
-export function updateImages(system) {
-    return podmanCall("ListImages", {}, system)
-            .then(reply => {
-                // Some information about images is only available in the OCI
-                // data. Grab what we need and add it to the image itself until
-                // podman's API does it for us
-
-                const images = {};
-                const promises = [];
-
-                for (const image of reply.images || []) {
-                    images[image.id] = image;
-                    promises.push(podmanCall("InspectImage", { name: image.id }, system));
-                }
-
-                return Promise.all(promises)
-                        .then(replies => {
-                            for (const reply of replies) {
-                                const info = JSON.parse(reply.image);
-                                // Update image with information from InspectImage API
-                                images[info.Id] = Object.assign(images[info.Id], parseImageInfo(info));
-                                images[info.Id].isSystem = system;
-                            }
-                            return images;
-                        });
-            })
-            .catch(ex => {
-                handleVarlinkCallError(ex);
-                return Promise.reject(ex);
-            });
-}
-
 export function getCommitArr(arr, cmd) {
     const ret = [];
     if (cmd === "ONBUILD") {
@@ -152,6 +105,8 @@ export function getCommitArr(arr, cmd) {
     }
     return ret;
 }
+
+// --------------------------- TO HERE ----------------
 
 /*
  * The functions quote_cmdline and unquote_cmdline implement
