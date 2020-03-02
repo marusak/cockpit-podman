@@ -14,11 +14,11 @@ export function getAddress(system) {
     return "";
 }
 
-function podmanCall(name, method, args, system) {
+function podmanCall(name, method, args, system, body) {
     const options = {
         method: method,
         path: "/v1.12/" + name,
-        body: "",
+        body: body || "",
         params: args,
     };
 
@@ -82,6 +82,15 @@ export function delContainer(system, id, force) {
             force: force,
         };
         podmanCall("libpod/containers/" + id, "DELETE", options, system)
+                .then(resolve)
+                .catch(reject);
+    });
+}
+
+export function createContainer(system, config) {
+    return new Promise((resolve, reject) => {
+        console.log(config);
+        podmanCall("libpod/containers/create", "POST", {}, system, JSON.stringify(config))
                 .then(resolve)
                 .catch(reject);
     });

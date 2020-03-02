@@ -42,7 +42,7 @@ function connect(address, system) {
     connection.call = function (options) {
         return new Promise((resolve, reject) => {
             options = options || {};
-
+            console.log(options);
             http.request(options)
                     .then(resolve)
                     .catch((error, content) => {
