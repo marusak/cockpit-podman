@@ -101,7 +101,7 @@ class Containers extends React.Component {
         let proc = "";
         let mem = "";
         if (containerStats) {
-            proc = containerStats.cpu_stats && containerStats.precpu_stats ? utils.format_cpu_percent(containerStats.cpu_stats, containerStats.precpu_stats) : <abbr title={_("not available")}>{_("n/a")}</abbr>;
+            proc = containerStats.cpu ? containerStats.cpu.toFixed(2) + "%" : <abbr title={_("not available")}>{_("n/a")}</abbr>;
             mem = containerStats.memory_stats ? utils.format_memory_and_limit(containerStats.memory_stats.usage, containerStats.memory_stats.limit) : <abbr title={_("not available")}>{_("n/a")}</abbr>;
         }
         const columns = [

@@ -5,42 +5,11 @@ const _ = cockpit.gettext;
 
 export const PODMAN_SYSTEM_ADDRESS = "unix:/run/podman/io.podman"; // TODO should be possible to remove
 
-/*
- * Podman returns dates in the format that golang's time.String() exports. Use
- * this format specifier for converting that to moment.js time, e.g.:
- *
- *     moment(date, util.GOLANG_TIME_FORMAT)
- *
- * https://github.com/containers/libpod/issues/2260
- */
-export const GOLANG_TIME_FORMAT = 'YYYY-MM-DD HH:mm:ss.S Z'; // TODO should be possible to remove
-
 export function truncate_id(id) {
     if (!id) {
         return "";
     }
     return _(id.substr(0, 12));
-}
-
-export function format_cpu_percent(cpu, precpu) { // TODO - https://github.com/containers/libpod/pull/5178
-    if (cpu === undefined || precpu === undefined) {
-        return "";
-    }
-
-    let cpuPercent = 0;
-    const cpuDelta = cpu.cpu_usage.total_usage - precpu.cpu_usage.total_usage;
-    let systemDelta = cpu.system_usage - precpu.system_usage;
-
-    // https://github.com/moby/moby/blob/eb131c5383db8cac633919f82abad86c99bffbe5/cli/command/container/stats_helpers.go#L175
-    // https://github.com/containers/libpod/pull/4423/files
-    // TODO system_usage is not on the protocol but gonna hopefully use #5178
-    systemDelta = 0;
-
-    if (cpuDelta > 0 && systemDelta > 0) {
-        cpuPercent = (cpuDelta / systemDelta) * (cpu.cpu_usage.percpu_usage.length * 100);
-    }
-
-    return cpuPercent.toFixed() + "%";
 }
 
 export function format_memory_and_limit(usage, limit) {

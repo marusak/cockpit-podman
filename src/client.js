@@ -112,7 +112,7 @@ export function getImages(system, id) {
     return new Promise((resolve, reject) => {
         const options = {};
         if (id)
-            options.filters = JSON.stringify({ id: [id] }); // TODO would be better if it would work wit ID - https://github.com/containers/libpod/pull/5236
+            options.filters = JSON.stringify({ id: [id] });
         podmanCall("libpod/images/json", "GET", options, system)
                 .then(reply => {
                     const immages = JSON.parse(reply);
