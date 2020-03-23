@@ -96,6 +96,14 @@ export function createContainer(system, config) {
     });
 }
 
+export function commitContainer(system, commitData) {
+    return new Promise((resolve, reject) => {
+        podmanCall("commit", "POST", commitData, system, JSON.stringify({}))
+                .then(resolve)
+                .catch(reject);
+    });
+}
+
 export function postContainer(system, action, id, args) {
     return new Promise((resolve, reject) => {
         podmanCall("libpod/containers/" + id + "/" + action, "POST", args, system)

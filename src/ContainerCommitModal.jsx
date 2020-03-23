@@ -3,6 +3,7 @@ import { Modal, Button, FormGroup, FormControl } from 'patternfly-react';
 import cockpit from 'cockpit';
 
 import * as utils from './util.js';
+import * as client from './client.js';
 import { ErrorNotification } from './Notification.jsx';
 
 import '../lib/form-layout.less';
@@ -73,23 +74,22 @@ class ContainerCommitModal extends React.Component {
         }
 
         const commitData = {};
-        commitData.name = this.props.container.id;
-        commitData.image_name = this.state.tag ? this.state.imageName + ":" + this.state.tag : this.state.imageName;
+        commitData.container = this.props.container.Id;
+        commitData.repo = this.state.imageName;
         commitData.author = this.state.author;
-        commitData.message = this.state.message;
+        commitData.comment = this.state.comment;
         commitData.pause = this.state.pause;
-        commitData.format = this.state.format;
+        commitData.format = this.state.format; // TODO format?? https://github.com/containers/libpod/issues/5586
+
+        if (this.state.tag)
+            commitData.tag = this.state.tag;
 
         commitData.changes = [];
         if (this.state.command.trim() !== "") {
             let cmdData = "";
-            if (utils.compare_versions(this.props.version, "1.7.0") > -1) {
-                const words = utils.unquote_cmdline(this.state.command.trim());
-                const cmdStr = words.map(quote).join(", ");
-                cmdData = "CMD [" + cmdStr + "]";
-            } else {
-                cmdData = "CMD=" + this.state.command.trim();
-            }
+            const words = utils.unquote_cmdline(this.state.command.trim());
+            const cmdStr = words.map(quote).join(", ");
+            cmdData = "CMD [" + cmdStr + "]";
             commitData.changes.push(cmdData);
         }
 
@@ -98,19 +98,15 @@ class ContainerCommitModal extends React.Component {
             onbuildsArr = utils.getCommitArr(this.state.onbuild, "ONBUILD");
         }
         commitData.changes.push(...onbuildsArr);
+        // TODO - changes needs to be string??
 
         this.setState({ commitInProgress: true });
-        utils.monitor("Commit", commitData, message => { // TODO implement once commit is supported - NO TRACKER!
-            const reply = message.parameters.reply;
-
-            if (reply && 'logs' in reply && Array.isArray(reply.logs) && reply.logs.length > 0)
-                console.log("Container commit:", message.parameters.reply.logs.join("\n"));
-        }, this.props.onHide, this.props.container.isSystem)
+        client.commitContainer(this.props.container.isSystem, commitData)
                 .then(() => this.props.onHide())
                 .catch(ex => {
                     this.setState({
                         dialogError: cockpit.format(_("Failed to commit container $0"), this.props.container.names),
-                        dialogErrorDetail: cockpit.format("$0: $1", ex.error, ex.parameters && ex.parameters.reason),
+                        dialogErrorDetail: cockpit.format("$0: $1", ex.message, ex.reason),
                         commitInProgress: false
                     });
                 });
