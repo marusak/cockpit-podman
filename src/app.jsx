@@ -330,7 +330,7 @@ class Application extends React.Component {
     }
 
     checkUserService() {
-        const argv = ["systemctl", "--user", "is-enabled", "io.podman.socket"]; // TODO: service name is gonna differ - NO TRACKER
+        const argv = ["systemctl", "--user", "is-enabled", "podman.socket"];
 
         cockpit.spawn(argv, { environ: ["LC_ALL=C"], err: "out" })
                 .then(() => this.setState({ userServiceExists: true }))
@@ -348,9 +348,9 @@ class Application extends React.Component {
 
         let argv;
         if (this.state.enableService)
-            argv = ["systemctl", "enable", "--now", "io.podman.socket"]; // TODO: service name is gonna differ - NO TRACKER
+            argv = ["systemctl", "enable", "--now", "podman.socket"];
         else
-            argv = ["systemctl", "start", "io.podman.socket"]; // TODO: service name is gonna differ - NO TRACKER
+            argv = ["systemctl", "start", "podman.socket"];
 
         cockpit.spawn(argv, { superuser: "require", err: "message" })
                 .then(() => this.init(true))
@@ -360,13 +360,13 @@ class Application extends React.Component {
                         systemContainersLoaded: true,
                         systemImagesLoaded: true
                     });
-                    console.warn("Failed to start system io.podman.socket:", JSON.stringify(err)); // TODO: service name is gonna differ - NO TRACKER
+                    console.warn("Failed to start system podman.socket:", JSON.stringify(err));
                 });
 
         if (this.state.enableService)
-            argv = ["systemctl", "--user", "enable", "--now", "io.podman.socket"]; // TODO: service name is gonna differ - NO TRACKER
+            argv = ["systemctl", "--user", "enable", "--now", "podman.socket"];
         else
-            argv = ["systemctl", "--user", "start", "io.podman.socket"]; // TODO: service name is gonna differ - NO TRACKER
+            argv = ["systemctl", "--user", "start", "podman.socket"];
 
         cockpit.spawn(argv, { err: "message" })
                 .then(() => this.init(false))
@@ -376,7 +376,7 @@ class Application extends React.Component {
                         userContainersLoaded: true,
                         userImagesLoaded: true
                     });
-                    console.warn("Failed to start user io.podman.socket:", JSON.stringify(err)); // TODO: service name is gonna differ - NO TRACKER
+                    console.warn("Failed to start user podman.socket:", JSON.stringify(err));
                 });
     }
 
@@ -387,7 +387,7 @@ class Application extends React.Component {
     goToServicePage(e) {
         if (!e || e.button !== 0)
             return;
-        cockpit.jump("/system/services#/io.podman.socket"); // TODO: service name is gonna differ - NO TRACKER
+        cockpit.jump("/system/services#/podman.socket");
     }
 
     render() {

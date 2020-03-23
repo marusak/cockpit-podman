@@ -55,9 +55,9 @@ class TestApplication(testlib.MachineCase):
                                                     identity_file=self.machine.identity_file)
 
         # Enable user service as well
-        self.admin_s.execute("systemctl --now --user enable io.podman.socket")
+        self.admin_s.execute("systemctl --now --user enable podman.socket")
 
-        self.allow_journal_messages("/run.*/podman/io.podman: couldn't connect.*")
+        self.allow_journal_messages("/run.*/podman/podman: couldn't connect.*")
         self.addCleanup(self.machine.execute, "podman rm --force --all && "
             "findmnt --list -otarget | grep /var/lib/containers | xargs -r umount && "
             "rm -r /var/lib/containers && "
@@ -81,7 +81,7 @@ class TestApplication(testlib.MachineCase):
 
         if not auth:
             self.allow_authorize_journal_messages()
-            self.allow_browser_errors("Failed to start system io.podman.socket.*")
+            self.allow_browser_errors("Failed to start system podman.socket.*")
 
         self.login_and_go("/podman", authorized=auth)
         b.wait_present("#app")
@@ -286,7 +286,7 @@ class TestApplication(testlib.MachineCase):
         # check varlink error
         b.set_input_text("#commit-dialog-image-name", "TEST")
         b.click(".modal-dialog div .btn-ctr-commit")
-        b.wait_present('.modal-dialog div:contains("io.podman.ErrorOccurred")')
+        b.wait_present('.modal-dialog div:contains("podman.ErrorOccurred")')
         b.click(".modal-dialog div .pf-c-alert .pf-c-button")
         b.wait_not_present(".modal-dialog div .alert")
         b.wait_present(".modal-dialog div .btn-ctr-commit:not([disabled])")
@@ -335,7 +335,7 @@ class TestApplication(testlib.MachineCase):
             # Create and start registry container
             self.execute(True, "podman run -d -p 5000:5000 --name registry registry:2")
             # Add local insecure registry into resgitries conf
-            self.execute(True, "echo \"{0}\" > /etc/containers/registries.conf && systemctl stop io.podman.service".format(REGISTRIES_CONF))
+            self.execute(True, "echo \"{0}\" > /etc/containers/registries.conf && systemctl stop podman.service".format(REGISTRIES_CONF))
             # Push busybox image to the local registry
             self.execute(True, "podman tag busybox localhost:5000/my-busybox && podman push localhost:5000/my-busybox")
             # Untag busybox image which duplicates the image we are about to download
@@ -472,7 +472,7 @@ class TestApplication(testlib.MachineCase):
 
         if not auth:
             self.allow_authorize_journal_messages()
-            self.allow_browser_errors("Failed to start system io.podman.socket.*")
+            self.allow_browser_errors("Failed to start system podman.socket.*")
 
         # run a container
         self.execute(auth, "podman run -dit --name swamped-crate busybox sh; podman stop swamped-crate")
@@ -540,30 +540,30 @@ class TestApplication(testlib.MachineCase):
         m = self.machine
 
         def disable_system():
-            self.execute(True, "systemctl disable --now io.podman.socket")
+            self.execute(True, "systemctl disable --now podman.socket")
             self.execute(True, "killall podman || true")
 
         def enable_system():
-            self.execute(True, "systemctl enable --now io.podman.socket")
+            self.execute(True, "systemctl enable --now podman.socket")
 
         def enable_user():
-            self.execute(False, "systemctl --user enable --now io.podman.socket")
+            self.execute(False, "systemctl --user enable --now podman.socket")
 
         def disable_user():
-            self.execute(False, "systemctl --user disable --now io.podman.socket")
+            self.execute(False, "systemctl --user disable --now podman.socket")
             self.execute(False, "killall podman || true")
 
         def is_active_system(string):
-            b.wait(lambda: self.execute(True, "systemctl is-active io.podman.socket || true").strip() == string)
+            b.wait(lambda: self.execute(True, "systemctl is-active podman.socket || true").strip() == string)
 
         def is_enabled_system(string):
-            b.wait(lambda: self.execute(True, "systemctl is-enabled io.podman.socket || true").strip() == string)
+            b.wait(lambda: self.execute(True, "systemctl is-enabled podman.socket || true").strip() == string)
 
         def is_active_user(string):
-            b.wait(lambda: self.execute(False, "systemctl --user is-active io.podman.socket || true").strip() == string)
+            b.wait(lambda: self.execute(False, "systemctl --user is-active podman.socket || true").strip() == string)
 
         def is_enabled_user(string):
-            b.wait(lambda: self.execute(False, "systemctl --user is-enabled io.podman.socket || true").strip() == string)
+            b.wait(lambda: self.execute(False, "systemctl --user is-enabled podman.socket || true").strip() == string)
 
         disable_system()
         disable_user()
@@ -572,7 +572,7 @@ class TestApplication(testlib.MachineCase):
         # Troubleshoot action
         b.click("#app .blank-slate-pf button.btn-default")
         b.enter_page("/system/services")
-        b.wait_in_text("#service", "io.podman.socket")
+        b.wait_in_text("#service", "podman.socket")
 
         # Start action, with enabling (by default)
         b.go("/podman")
