@@ -77,9 +77,11 @@ class ContainerCommitModal extends React.Component {
         commitData.container = this.props.container.Id;
         commitData.repo = this.state.imageName;
         commitData.author = this.state.author;
-        commitData.comment = this.state.comment;
         commitData.pause = this.state.pause;
-        commitData.format = this.state.format; // TODO format?? https://github.com/containers/libpod/issues/5586
+        commitData.format = this.state.format;
+
+        if (this.state.comment)
+            commitData.comment = this.state.comment;
 
         if (this.state.tag)
             commitData.tag = this.state.tag;
@@ -98,7 +100,6 @@ class ContainerCommitModal extends React.Component {
             onbuildsArr = utils.getCommitArr(this.state.onbuild, "ONBUILD");
         }
         commitData.changes.push(...onbuildsArr);
-        // TODO - changes needs to be string??
 
         this.setState({ commitInProgress: true });
         client.commitContainer(this.props.container.isSystem, commitData)
