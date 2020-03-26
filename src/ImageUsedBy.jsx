@@ -19,7 +19,7 @@ const renderRow = (containerStats, container, showAll) => {
         utils.quote_cmdline(container.command),
         proc,
         mem,
-        container.State /* TODO: i18n */,
+        container.State /* FIXME: i18n */,
 
     ];
     return <Listing.ListingRow

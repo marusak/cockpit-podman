@@ -220,8 +220,6 @@ export class ImageRunModal extends React.Component {
 
     getCreateConfig() {
         const createConfig = {};
-        // cgorupns
-        // cgroups_mode
 
         createConfig.image = this.state.image.RepoTags ? this.state.image.RepoTags[0] : "";
         if (this.state.containerName)
@@ -241,6 +239,7 @@ export class ImageRunModal extends React.Component {
             createConfig.resource_limits = resourceLimit;
         }
         createConfig.terminal = this.state.hasTTY;
+        // TODO ports don't work
         if (this.state.publish.length > 0)
             createConfig.portmappings = this.state.publish
                     .filter(port => port.hostPort && port.containerPort)
@@ -268,10 +267,7 @@ export class ImageRunModal extends React.Component {
 
         client.createContainer(this.state.image.isSystem, createConfig)
                 .then(reply => {
-                    // TODO
-                    console.log("AAAAAAAAAAAAAAAAAAAAAAAAA");
-                    console.log(reply);
-                    client.postContainer(this.state.image.isSystem, "start", reply.container, {});
+                    client.postContainer(this.state.image.isSystem, "start", reply.Id, {});
                 })
                 .then(() => this.props.close())
                 .catch(ex => {

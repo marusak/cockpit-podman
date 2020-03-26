@@ -111,7 +111,7 @@ class Containers extends React.Component {
             proc,
             mem,
             container.isSystem ? _("system") : this.props.user,
-            container.State /* TODO: i18n */,
+            container.State /* FIXME: i18n */,
         ];
         const tabs = [{
             name: _("Details"),

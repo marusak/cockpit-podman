@@ -296,10 +296,7 @@ class Application extends React.Component {
                     this.updateImagesAfterEvent(system);
                     this.updateContainersAfterEvent(system);
                     client.streamEvents(system,
-                                        message => this.handleEvent(message, system)
-                                        , isSystem => {
-                                            this.setState({ [isSystem ? "systemServiceAvailable" : "userServiceAvailable"]: false });
-                                        })
+                                        message => this.handleEvent(message, system))
                             .then(() => this.setState({ [system ? "systemServiceAvailable" : "userServiceAvailable"]: false }))
                             .catch(e => {
                                 this.setState({ [system ? "systemServiceAvailable" : "userServiceAvailable"]: false });

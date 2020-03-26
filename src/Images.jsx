@@ -98,7 +98,6 @@ class Images extends React.Component {
     renderRow(image) {
         const tabs = [];
 
-        // TODO: image waiting if - else
         const runImage = (
             <Button key={image.Id + "create"}
                 className="btn btn-default btn-control-ct fa fa-play"

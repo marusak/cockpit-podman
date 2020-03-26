@@ -23,7 +23,7 @@ function connect(address, system) {
     const http = cockpit.http(address.slice(5), { superuser: true });
     const connection = {};
 
-    connection.monitor = function(options, callback, on_close, system, return_raw) {
+    connection.monitor = function(options, callback, system, return_raw) {
         return new Promise((resolve, reject) => {
             http.request(options)
                     .stream(data => {
@@ -35,7 +35,7 @@ function connect(address, system) {
                     .catch((error, content) => {
                         manage_error(reject, error, content);
                     })
-                    .then(resolve); // TODO on close
+                    .then(resolve);
         });
     };
 

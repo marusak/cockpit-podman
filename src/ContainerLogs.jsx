@@ -107,7 +107,7 @@ class ContainerLogs extends React.Component {
             },
         };
 
-        connection.monitor(options, this.onStreamMessage, this.onStreamClose, this.props.system, true)
+        connection.monitor(options, this.onStreamMessage, this.props.system, true)
                 .then(this.onStreamClose)
                 .catch(e => {
                     this.setState({

@@ -25,7 +25,7 @@ function podmanCall(name, method, args, system, body) {
     return rest.call(getAddress(system), system, options);
 }
 
-function podmanMonitor(name, method, args, callback, on_close, system) {
+function podmanMonitor(name, method, args, callback, system) {
     const options = {
         method: method,
         path: "/v1.12/" + name,
@@ -34,12 +34,12 @@ function podmanMonitor(name, method, args, callback, on_close, system) {
     };
 
     const connection = rest.connect(getAddress(system), system);
-    return connection.monitor(options, callback, on_close, system);
+    return connection.monitor(options, callback, system);
 }
 
-export function streamEvents(system, callback, on_close) {
+export function streamEvents(system, callback) {
     return new Promise((resolve, reject) => {
-        podmanMonitor("events", "GET", {}, callback, on_close, system)
+        podmanMonitor("events", "GET", {}, callback, system)
                 .then(reply => resolve(JSON.parse(reply)))
                 .catch(reject);
     });
@@ -68,7 +68,7 @@ export function getContainers(system, id) {
 export function getContainerStats(system, id) {
     return new Promise((resolve, reject) => {
         const options = {
-            stream: false, // TODO Fix that it actually streams
+            stream: false, // FIXME that it actually streams
         };
         podmanCall("libpod/containers/" + id + "/stats", "GET", options, system)
                 .then(reply => resolve(JSON.parse(reply)))
