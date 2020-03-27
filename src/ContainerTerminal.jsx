@@ -76,7 +76,7 @@ class ContainerTerminal extends React.Component {
         var realWidth = this.state.term._core._renderCoordinator.dimensions.actualCellWidth;
         var cols = Math.floor((width - padding) / realWidth);
         this.state.term.resize(cols, 24);
-        cockpit.spawn(["sh", "-c", "echo '1 24 " + cols.toString() + "'>" + this.state.control_channel], { superuser: this.props.system ? "require" : null });
+        // TODO resize cols 24
         this.setState({ cols: cols });
     }
 
@@ -91,6 +91,31 @@ class ContainerTerminal extends React.Component {
             return;
         }
 
+        // sudo curl -X POST -H "Content-Type: application/json" --data "{\"AttachStderr\":true,\"AttachStdin\":true,\"AttachStdout\":true,\"Cmd\":[\"bash\"]}" --unix-socket /run/podman/podman.sock http://d/v1.24/libpod/containers/611600f65ba03edc4bde625de5c3b47c01352e36d6fe84d0a623da1d597871be/exec
+        // {"Id":"c063fac4f651728929d9dbfb4ed59eb4b5ada124c82e44485ae98b07bccc533e"}
+        //
+        //
+        // sudo curl -X POST -H "Content-Type: application/json" --data "{\"Tty\":true,\"Detach\":false}" --unix-socket /run/podman/podman.sock http://d/v1.24/libpod/exec/c063fac4f651728929d9dbfb4ed59eb4b5ada124c82e44485ae98b07bccc533e/start
+        //
+        // TODO
+        /*
+        tty = options.tty;
+        if (tty === undefined || tty === null)
+            tty = true;
+
+        exec = {
+            method: "POST",
+            path: "/v1.15/containers/" + encodeURIComponent(container_id) + "/exec",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                AttachStdin: tty,
+                AttachStdout: true,
+                AttachStderr: true,
+                Tty: tty,
+                Cmd: command
+            })
+        */
+        /*
         // https://github.com/marusak/cockpit-podman/tree/proper_terminal
         utils.podmanCall("GetAttachSockets", { name: this.state.container }, this.props.system) // TODO rewrite this with exec once implemented - https://github.com/containers/libpod/pull/5088
                 .then(out => {
@@ -130,16 +155,19 @@ class ContainerTerminal extends React.Component {
                             });
                 })
                 .catch(e => this.setState({ errorMessage: cockpit.format(_("Could not attach to this container: $0"), e.problem) }));
+        */
     }
 
     componentWillUnmount() {
         this.disconnectChannel();
         if (this.state.channel)
             this.state.channel.close();
+        // TODO this close won't work, or will it??
         this.state.term.destroy();
     }
 
     onChannelMessage(event, data) {
+        // TODO
         this.state.term.write(data.substring(1)); // Drop first character which is marking stdin/stdout/stderr
     }
 
