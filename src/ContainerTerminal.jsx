@@ -97,6 +97,14 @@ class ContainerTerminal extends React.Component {
         logsData.cmd = ["sh"];
         logsData = { opts: logsData };
 
+
+        // sudo curl -X POST -H "Content-Type: application/json" --data "{\"AttachStderr\":true,\"AttachStdin\":true,\"AttachStdout\":true,\"Cmd\":[\"bash\"]}" --unix-socket /run/podman/podman.sock http://d/v1.24/libpod/containers/611600f65ba03edc4bde625de5c3b47c01352e36d6fe84d0a623da1d597871be/exec
+        // {"Id":"c063fac4f651728929d9dbfb4ed59eb4b5ada124c82e44485ae98b07bccc533e"}
+        //
+        //
+        // sudo curl -X POST -H "Content-Type: application/json" --data "{\"Tty\":true,\"Detach\":false}" --unix-socket /run/podman/podman.sock http://d/v1.24/libpod/exec/c063fac4f651728929d9dbfb4ed59eb4b5ada124c82e44485ae98b07bccc533e/start
+
+
         varlink.connect(utils.getAddress(this.props.system), this.props.system, true)
                 .then(connection => {
                     // Show the terminal. Once it was shown, do not show it again but reuse the previous one
